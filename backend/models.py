@@ -1,17 +1,26 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
-class User(BaseModel):
+
+class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str  # 'shipper' or 'loader'
 
-class Load(BaseModel):
-    shipper_id: str
+class User(BaseModel):
+    email: EmailStr
+    hashed_password: str
+    role: str  # 'shipper' or 'loader'
+
+class LoadCreate(BaseModel):
     origin: str
     destination: str
     weight: float
-    status: str  # 'posted', 'active', 'completed'
+
+class Load(LoadCreate):
+    id: str
+    shipper_id: str
+    status: str
     loader_id: Optional[str] = None
 
 class Truck(BaseModel):

@@ -1,43 +1,37 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import EmailStr
-from backend.models import User
-from typing import Dict
-import jwt
-import datetime
-
-SECRET_KEY = "your_secret_key"  # Change this in production
-ALGORITHM = "HS256"
+from backend.models import User, UserCreate
+from backend.database import db
+from backend.security import verify_password, get_password_hash, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# In-memory user store for demo purposes
-fake_users_db: Dict[str, User] = {}
-
 @router.post('/register', status_code=status.HTTP_201_CREATED)
-def register(user: User):
-    if user.email in fake_users_db:
+def register(user_in: UserCreate):
+    user_ref = db.collection('users').document(user_in.email)
+    if user_ref.get().exists:
         raise HTTPException(status_code=400, detail="Email already registered")
-    fake_users_db[user.email] = user
+    
+    hashed_password = get_password_hash(user_in.password)
+    user_db = User(email=user_in.email, role=user_in.role, hashed_password=hashed_password)
+    user_ref.set(user_db.model_dump())
     return {"message": "User registered successfully"}
 
 def authenticate_user(email: str, password: str):
-    user = fake_users_db.get(email)
-    if not user or user.password != password:
+    user_ref = db.collection('users').document(email)
+    user_doc = user_ref.get()
+    if not user_doc.exists:
         return False
-    return user
+    user = User(**user_doc.to_dict())
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user_doc.to_dict()
 
-def create_access_token(data: dict, expires_delta: int = 3600):
-    to_encode = data.copy()
-    expire = datetime.datetime.utcnow() + datetime.timedelta(seconds=expires_delta)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-@router.post('/token')
+@router.post('/token', status_code=status.HTTP_200_OK)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-    access_token = create_access_token({"sub": user.email})
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password", headers={"WWW-Authenticate": "Bearer"})
+    
+    access_token = create_access_token(data={"sub": user["email"], "role": user["role"]})
     return {"access_token": access_token, "token_type": "bearer"}
