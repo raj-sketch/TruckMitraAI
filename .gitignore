@@ -24,4 +24,4 @@ dist-ssr
 *.sw?
 
 # Database files
-backend/serviceAccountKey.json 
+echo backend/serviceAccountKey.json 
