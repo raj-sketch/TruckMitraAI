@@ -12,11 +12,12 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.post("http://127.0.0.1:8000/auth/token", null, {
-        params: {
-          username: email,
-          password: password,
-        },
+      // For OAuth2PasswordRequestForm, data must be sent as x-www-form-urlencoded in the body.
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+
+      const response = await axios.post("http://127.0.0.1:8000/auth/token", formData, {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },

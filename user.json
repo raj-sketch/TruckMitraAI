@@ -1,0 +1,12 @@
+[
+  {
+    "email": "shipper1@test.com",
+    "role": "shipper",
+    "name": "Test Shipper One"
+  },
+  {
+    "email": "loader1@test.com",
+    "role": "loader",
+    "name": "Test Loader One"
+  }
+]
