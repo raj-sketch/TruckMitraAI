@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from backend.models import User, UserCreate
+from typing import Optional
 from backend.database import db
 from backend.security import verify_password, get_password_hash, create_access_token
 
@@ -13,19 +14,24 @@ def register(user_in: UserCreate):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = get_password_hash(user_in.password)
-    user_db = User(email=user_in.email, role=user_in.role, hashed_password=hashed_password)
+    user_db = User(
+        email=user_in.email,
+        role=user_in.role,
+        hashed_password=hashed_password,
+        company_name=user_in.company_name,
+    )
     user_ref.set(user_db.model_dump())
     return {"message": "User registered successfully"}
 
-def authenticate_user(email: str, password: str):
+def authenticate_user(email: str, password: str) -> Optional[User]:
     user_ref = db.collection('users').document(email)
     user_doc = user_ref.get()
     if not user_doc.exists:
-        return False
+        return None
     user = User(**user_doc.to_dict())
     if not verify_password(password, user.hashed_password):
-        return False
-    return user_doc.to_dict()
+        return None
+    return user
 
 @router.post('/token', status_code=status.HTTP_200_OK)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -33,5 +39,5 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password", headers={"WWW-Authenticate": "Bearer"})
     
-    access_token = create_access_token(data={"sub": user["email"], "role": user["role"]})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    return {"access_token": access_token, "token_type": "bearer", "role": user.role}

@@ -1,29 +1,24 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
+# --- User Models ---
 
-class UserCreate(BaseModel):
+class UserBase(BaseModel):
+    """Base model for common user properties."""
     email: EmailStr
+    role: str  # 'shipper' or 'loader'
+    company_name: Optional[str] = None
+    gst_number: Optional[str] = None
+
+class UserCreate(UserBase):
+    """Model for creating a new user, includes password."""
     password: str
-    role: str  # 'shipper' or 'loader'
 
-class User(BaseModel):
-    email: EmailStr
+class User(UserBase):
+    """Model for user data stored in the database, includes hashed password."""
     hashed_password: str
-    role: str  # 'shipper' or 'loader'
 
-class LoadCreate(BaseModel):
-    origin: str
-    destination: str
-    weight: float
-
-class Load(LoadCreate):
-    id: str
-    shipper_id: str
-    status: str
-    loader_id: Optional[str] = None
-
-class Truck(BaseModel):
-    loader_id: str
-    truck_number: str
-    current_location: str
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    role: str

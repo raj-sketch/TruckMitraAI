@@ -8,7 +8,7 @@ const containerStyle = {
 
 export default function TripMap({ origin, destination }) {
   const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: "YOUR_GOOGLE_MAPS_API_KEY", // Replace with your API key
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
   });
 
   if (!isLoaded) return <div>Loading Map...</div>;
@@ -31,4 +31,3 @@ export default function TripMap({ origin, destination }) {
     </GoogleMap>
   );
 }
-
