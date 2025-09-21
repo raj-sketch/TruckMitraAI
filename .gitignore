@@ -25,5 +25,5 @@ dist-ssr
 
 # Database files
 .env
-_pycache__
+
 backend/serviceAccountKey.json
