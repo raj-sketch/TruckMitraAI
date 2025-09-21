@@ -1,6 +1,7 @@
+# backend/database.py
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-cred = credentials.Certificate('path/to/serviceAccountKey.json')
-firebase_admin.initialize_app(cred)
+# The SDK will automatically find the credentials from the environment variable
+firebase_admin.initialize_app() 
 db = firestore.client()

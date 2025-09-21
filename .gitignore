@@ -24,4 +24,5 @@ dist-ssr
 *.sw?
 
 # Database files
-backend/serviceAccountKey.json
+.env
+_pycache__
