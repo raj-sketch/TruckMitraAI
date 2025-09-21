@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from backend.models import Load, User, LoadCreate, Load
+from backend.models import Load, User, LoadCreate, LoadRead
+from datetime import datetime, timezone
 from typing import List
 from backend.database import db
 from backend.security import get_current_user
@@ -13,13 +14,14 @@ def post_load(load_in: LoadCreate, current_user: User = Depends(get_current_user
     
     load_dict = load_in.model_dump()
     load_dict["status"] = "posted"
+    load_dict["posted_date"] = datetime.now(timezone.utc)
     load_dict["shipper_id"] = current_user.email # Ensure shipper_id is the authenticated user
 
     # Use .add() to let Firestore generate the document ID
     update_time, load_ref = db.collection('loads').add(load_dict)
     return {"load_id": load_ref.id, "message": "Load posted successfully"}
 
-@router.get("/shipper/me", response_model=List[Load])
+@router.get("/shipper/me", response_model=List[LoadRead])
 def get_my_loads(current_user: User = Depends(get_current_user)):
     """
     Get all loads posted by the currently authenticated shipper.
@@ -32,17 +34,17 @@ def get_my_loads(current_user: User = Depends(get_current_user)):
     for doc in docs:
         load_data = doc.to_dict()
         load_data['id'] = doc.id
-        loads.append(Load(**load_data))
+        loads.append(LoadRead(**load_data))
     return loads
 
-@router.get("/available", response_model=List[Load])
+@router.get("/available", response_model=List[LoadRead])
 def get_available_loads(current_user: User = Depends(get_current_user)):
     docs = db.collection('loads').where('status', '==', 'posted').stream()
     loads = []
     for doc in docs:
         load_data = doc.to_dict()
         load_data['id'] = doc.id
-        loads.append(Load(**load_data))
+        loads.append(LoadRead(**load_data))
     return loads
 
 @router.put("/{load_id}/accept")

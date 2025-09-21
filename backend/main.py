@@ -9,13 +9,16 @@ load_dotenv(dotenv_path=dotenv_path)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import auth, loads
+from backend.routers import auth, loads, predictions, users
 from backend import database
 
 app = FastAPI()
 
-# CORS Middleware
-origins = ["*"]
+# CORS (Cross-Origin Resource Sharing)
+# It's better to control this via an environment variable
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+origins = FRONTEND_URL.split(",")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,8 +30,9 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(loads.router)
+app.include_router(predictions.router)
+app.include_router(users.router)
 
-@app.get('/')
+@app.get("/")
 def read_root():
-
     return {"message": "Welcome to TruckMitraAI API"}

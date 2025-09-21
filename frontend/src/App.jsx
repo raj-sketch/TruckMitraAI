@@ -2,17 +2,15 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LoginPage from "./pages/LoginPage.jsx";
 import ShipperDashboard from "./pages/ShipperDashboard.jsx";
-import LoaderDashboard from "./pages/LoaderDashboard.jsx";
+import DriverDashboard from "./pages/DriverDashboard.jsx";
 
 export default function App() {
-	// For demo, use hardcoded userId and loaderId. Replace with real auth logic.
-
 	return (
 		<Router>
 			<Routes>
-            <Route path="/" element={<LoginPage />} />
-            <Route path="/shipper" element={<ShipperDashboard userIdccccc="demo-shipper" onLogout={() => {}} />} />
-            <Route path="/loader" element={<LoaderDashboard loaderId="demo-loader" />} />
+				<Route path="/" element={<LoginPage />} />
+				<Route path="/shipper-dashboard" element={<ShipperDashboard />} />
+				<Route path="/driver-dashboard" element={<DriverDashboard />} />
 			</Routes>
 		</Router>
 	);
