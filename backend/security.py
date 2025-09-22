@@ -2,18 +2,17 @@ import os
 from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pydantic import ValidationError
 
 from backend.database import db
 from backend.models import User
+from backend.dependencies import oauth2_scheme
 
 # --- JWT Configuration ---
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 # Initialize the password context, specifying bcrypt as the scheme
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -28,6 +27,9 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Creates a new JWT access token."""
+    if not SECRET_KEY:
+        raise ValueError("SECRET_KEY is not set. Cannot create access token.")
+
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta

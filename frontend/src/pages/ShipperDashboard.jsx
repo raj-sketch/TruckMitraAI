@@ -76,7 +76,7 @@ export default function ShipperDashboard() {
       };
 
       const res = await api.post("/loads/", payload);
-      setFormSuccess(`Load created! ID: ${res.data.id}`);
+      setFormSuccess(`Load created! ID: ${res.data.load_id}`);
 
       // Reset form fields
       setOrigin("");

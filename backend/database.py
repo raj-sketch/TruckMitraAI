@@ -2,11 +2,6 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
-from dotenv import load_dotenv
-
-# Load environment variables from a .env file at the project root.
-# This should be done before any other code attempts to access os.getenv().
-load_dotenv()
 
 # Initialize db to None. It will be populated if Firebase initializes correctly.
 db = None

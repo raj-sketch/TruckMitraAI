@@ -8,7 +8,7 @@ class UserBase(BaseModel):
     """Base model for common user properties."""
     email: EmailStr
     role: str  # 'shipper' or 'loader'
-    company_name: Optional[str] = None
+    user_name: Optional[str] = None
     gst_number: Optional[str] = None
 
 class UserCreate(UserBase):
@@ -23,7 +23,7 @@ class UserRead(BaseModel):
     """Model for reading user data, excluding sensitive information like hashed password."""
     email: EmailStr
     role: str
-    company_name: Optional[str] = None
+    user_name: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
@@ -43,6 +43,11 @@ class LoadBase(BaseModel):
 class LoadCreate(LoadBase):
     """Model for creating a new load."""
     pass
+
+class LoadCreateResponse(BaseModel):
+    """Model for the response after creating a load."""
+    load_id: str
+    message: str
 
 class Load(LoadBase):
     """Model for load data stored in the database."""

@@ -1,6 +1,14 @@
 import json
 import os
 import sys
+import pathlib
+from dotenv import load_dotenv
+
+# Explicitly find and load the .env file in the project root.
+project_root = pathlib.Path(__file__).parent
+dotenv_path = project_root / ".env"
+if dotenv_path.is_file():
+    load_dotenv(dotenv_path=dotenv_path)
 
 # Add project root to the Python path to allow imports from 'backend'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
@@ -49,9 +57,21 @@ def seed_database():
             print(f"⚠️ Skipping record due to missing email: {user_data}")
             continue
 
+        # The key in user.json is 'name', not 'user_name'.
+        user_name = user_data.get("name")
+        if not user_name:
+            print(f"⚠️ Skipping user {email} due to missing user_name.")
+            continue
+
         print(f"  - Processing user: {email} ({user_data.get('role')})")
         hashed_password = get_password_hash("password123")
-        user_db = User(email=email, role=user_data["role"], hashed_password=hashed_password)
+        user_db = User(
+            email=email,
+            role=user_data["role"],
+            user_name=user_name,
+            hashed_password=hashed_password,
+            gst_number=None  # Explicitly set optional fields to ensure schema consistency
+        )
         users_collection.document(email).set(user_db.model_dump())
 
     print("\n✅ Database seeding completed successfully!")

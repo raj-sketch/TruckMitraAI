@@ -19,7 +19,7 @@ def register(user_in: UserCreate):
         email=user_in.email,
         role=user_in.role,
         hashed_password=hashed_password,
-        company_name=user_in.company_name,
+        user_name=user_in.user_name,
     )
     user_ref.set(user_db.model_dump())
     return {"message": "User registered successfully"}

@@ -31,7 +31,7 @@ export default function DashboardLayout({ pageTitle, children }) {
   const getDisplayName = () => {
     if (error) return <span className="text-red-500 text-sm">Error</span>;
     if (!user) return <span className="text-sm">Loading...</span>;
-    return user.company_name || user.email;
+    return user.user_name || user.email;
   };
 
   return (

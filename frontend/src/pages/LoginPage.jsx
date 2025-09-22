@@ -14,8 +14,8 @@ export default function LoginPage() {
 
   // Signup state
   const [role, setRole] = useState("shipper"); // 'loader' | 'shipper'
-  const [companyName, setCompanyName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
+  const [userName, setUserName] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupError, setSignupError] = useState("");
@@ -61,7 +61,7 @@ export default function LoginPage() {
         email: signupEmail,
         password: signupPassword,
         role,
-        // companyName can be sent when backend supports it
+        user_name: userName,
       });
       setSignupSuccess("Account created. Please log in.");
       setMode("login");
@@ -156,8 +156,8 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Company Name</label>
-                <input className="w-full px-3 py-2 rounded-md border border-gray-200" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+                <label className="block text-xs text-gray-500 mb-1">User Name / Company Name</label>
+                <input className="w-full px-3 py-2 rounded-md border border-gray-200" value={userName} onChange={(e) => setUserName(e.target.value)} required/>
               </div>
 
               <div>

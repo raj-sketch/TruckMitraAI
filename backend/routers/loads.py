@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import datetime, timezone
 from backend.database import db
-from backend.models import LoadCreate, LoadRead, User
+from backend.models import LoadCreate, LoadCreateResponse, User
 from backend.security import get_current_user
 
 # Create a new router for loads
@@ -9,7 +9,7 @@ router = APIRouter()
 
 @router.post(
     "/",
-    response_model=LoadRead,
+    response_model=LoadCreateResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new load"
 )
@@ -45,8 +45,7 @@ def create_load(
         # Add a new document to the 'loads' collection with an auto-generated ID
         _update_time, doc_ref = db.collection("loads").add(load_dict)
 
-        # Return the full object by merging the generated ID with the saved data
-        return LoadRead(id=doc_ref.id, **load_dict)
+        return {"load_id": doc_ref.id, "message": "Load posted successfully"}
 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

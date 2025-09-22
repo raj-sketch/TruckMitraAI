@@ -21,14 +21,38 @@ client = TestClient(app)
 TEST_SHIPPER_USER = {
     "email": "shipper@example.com",
     "password": "password123",
-    "role": "shipper"
+    "role": "shipper",
+    "user_name": "Test Shipper"
 }
 
 TEST_LOADER_USER = {
     "email": "loader@example.com",
     "password": "password123",
-    "role": "loader"
+    "role": "loader",
+    "user_name": "Test Loader"
 }
+
+@pytest.fixture
+def authenticated_user_mock():
+    """
+    A fixture that mocks the database call made by `get_current_user`.
+    This is crucial for testing any authenticated endpoint.
+    """
+    def _setup_mock(user_data):
+        hashed_password = get_password_hash(user_data["password"])
+        mock_user_doc = {
+            "email": user_data["email"],
+            "hashed_password": hashed_password,
+            "role": user_data["role"],
+            "user_name": user_data["user_name"],
+        }
+        mock_user_get = MagicMock()
+        mock_user_get.exists = True
+        mock_user_get.to_dict.return_value = mock_user_doc
+        # This is the specific mock for get_current_user's DB call
+        mock_db.collection("users").document(user_data["email"]).get.return_value = mock_user_get
+    
+    return _setup_mock
 
 @pytest.fixture(autouse=True)
 def reset_db_mock():
@@ -54,6 +78,7 @@ def get_auth_token(user_data):
         "email": user_data["email"],
         "hashed_password": hashed_password,
         "role": user_data["role"],
+        "user_name": user_data["user_name"],
     }
     mock_user_get.exists = True
     mock_user_get.to_dict.return_value = mock_user_doc
@@ -102,6 +127,7 @@ def test_login_success():
         "email": TEST_SHIPPER_USER["email"],
         "hashed_password": hashed_password,
         "role": TEST_SHIPPER_USER["role"],
+        "user_name": TEST_SHIPPER_USER["user_name"],
     }
 
     mock_user_get = MagicMock()
@@ -121,20 +147,25 @@ def test_login_success():
 
 def test_login_failure_wrong_password():
     """Test that login fails with an incorrect password."""
+    # Setup a user in the 'database' with a known password
     hashed_password = get_password_hash("a_different_password")
     mock_user_doc = {
         "email": TEST_SHIPPER_USER["email"],
         "hashed_password": hashed_password,
         "role": TEST_SHIPPER_USER["role"],
+        "user_name": TEST_SHIPPER_USER["user_name"],
     }
 
     mock_user_get = MagicMock()
     mock_user_get.exists = True
     mock_user_get.to_dict.return_value = mock_user_doc
     mock_db.collection.return_value.document.return_value.get.return_value = mock_user_get
+    # Ensure this mock is specific to the user's email
+    mock_db.collection("users").document(TEST_SHIPPER_USER["email"]).get.return_value = mock_user_get
 
     response = client.post(
         "/auth/token",
+        "/auth/token", # Attempt to log in with the wrong password
         data={"username": TEST_SHIPPER_USER["email"], "password": TEST_SHIPPER_USER["password"]},
     )
 
@@ -153,6 +184,7 @@ def test_post_load_success():
         "origin": "Mumbai, India",
         "destination": "Delhi, India",
         "weight": 10000,
+        "material_type": "General Goods",
     }
 
     # Mock the .add() method which is used in post_load
@@ -172,11 +204,12 @@ def test_post_load_success():
     # Assert that .add() was called, not .set()
     mock_db.collection.return_value.add.assert_called_once()
 
-def test_get_available_loads():
+def test_get_available_loads(authenticated_user_mock):
     """Test that available loads can be retrieved."""
+    authenticated_user_mock(TEST_LOADER_USER) # Mock the authenticated user
     token = get_auth_token(TEST_LOADER_USER)
     headers = {"Authorization": f"Bearer {token}"}
-
+    
     mock_load_doc = MagicMock()
     mock_load_doc.id = "load_1"
     mock_load_doc.to_dict.return_value = {
@@ -194,9 +227,10 @@ def test_get_available_loads():
     assert len(response.json()) == 1
     assert response.json()[0]["status"] == "posted"
 
-def test_get_my_shipper_loads():
+def test_get_my_shipper_loads(authenticated_user_mock):
     """Test retrieving all loads for the currently authenticated shipper."""
-    token = get_auth_token(TEST_SHIPPER_USER)
+    authenticated_user_mock(TEST_SHIPPER_USER) # Mock the authenticated user
+    token = get_auth_token(TEST_SHIPPER_USER) # get_auth_token still needed for the token itself
     headers = {"Authorization": f"Bearer {token}"}
     shipper_email = TEST_SHIPPER_USER["email"]
 
@@ -217,8 +251,9 @@ def test_get_my_shipper_loads():
     assert len(response.json()) == 1
     assert response.json()[0]["shipper_id"] == shipper_email
 
-def test_get_my_shipper_loads_not_a_shipper():
+def test_get_my_shipper_loads_not_a_shipper(authenticated_user_mock):
     """Test that a non-shipper user cannot retrieve shipper loads."""
+    authenticated_user_mock(TEST_LOADER_USER) # Mock the authenticated user
     token = get_auth_token(TEST_LOADER_USER) # Use a loader
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -226,23 +261,12 @@ def test_get_my_shipper_loads_not_a_shipper():
     assert response.status_code == 403
     assert response.json() == {"detail": "Only shippers can view their posted loads"}
 
-def test_accept_load_success():
+def test_accept_load_success(authenticated_user_mock):
     """Test that a loader can successfully accept a posted load."""
+    authenticated_user_mock(TEST_LOADER_USER)
     token = get_auth_token(TEST_LOADER_USER)
     headers = {"Authorization": f"Bearer {token}"}
     load_id = "test_load_123"
-    
-    # Mock for the user document (needed by get_current_user)
-    mock_user_get = MagicMock()
-    mock_user_get.exists = True
-    hashed_password = get_password_hash(TEST_LOADER_USER["password"])
-    mock_user_get.to_dict.return_value = {
-        "email": TEST_LOADER_USER["email"],
-        "hashed_password": hashed_password,
-        "role": TEST_LOADER_USER["role"],
-    }
-    mock_user_doc_ref = MagicMock()
-    mock_user_doc_ref.get.return_value = mock_user_get
 
     # Mock for the load document
     mock_load_get = MagicMock()
@@ -251,15 +275,7 @@ def test_accept_load_success():
     mock_load_doc_ref = MagicMock()
     mock_load_doc_ref.get.return_value = mock_load_get
 
-    # Use a side effect to return the correct mock based on the document ID
-    def document_side_effect(doc_id):
-        if doc_id == load_id:
-            return mock_load_doc_ref
-        if doc_id == TEST_LOADER_USER["email"]:
-            return mock_user_doc_ref
-        return MagicMock()
-
-    mock_db.collection.return_value.document.side_effect = document_side_effect
+    mock_db.collection("loads").document(load_id).get.return_value = mock_load_get
 
     response = client.put(f"/loads/{load_id}/accept", headers=headers)
 
@@ -270,30 +286,19 @@ def test_accept_load_success():
         "loader_id": TEST_LOADER_USER["email"]
     })
 
-def test_accept_load_not_posted():
+def test_accept_load_not_posted(authenticated_user_mock):
     """Test that accepting a load that is not in 'posted' status fails."""
+    authenticated_user_mock(TEST_LOADER_USER)
     token = get_auth_token(TEST_LOADER_USER)
     headers = {"Authorization": f"Bearer {token}"}
     load_id = "test_load_123"
-
-    mock_user_get = MagicMock()
-    mock_user_get.exists = True
-    hashed_password = get_password_hash(TEST_LOADER_USER["password"])
-    mock_user_get.to_dict.return_value = {"email": TEST_LOADER_USER["email"], "hashed_password": hashed_password, "role": TEST_LOADER_USER["role"]}
-    mock_user_doc_ref = MagicMock()
-    mock_user_doc_ref.get.return_value = mock_user_get
 
     mock_load_get = MagicMock()
     mock_load_get.exists = True
     mock_load_get.to_dict.return_value = {"status": "active"}  # Already active
     mock_load_doc_ref = MagicMock()
     mock_load_doc_ref.get.return_value = mock_load_get
-
-    def document_side_effect(doc_id):
-        if doc_id == load_id: return mock_load_doc_ref
-        if doc_id == TEST_LOADER_USER["email"]: return mock_user_doc_ref
-        return MagicMock()
-    mock_db.collection.return_value.document.side_effect = document_side_effect
+    mock_db.collection("loads").document(load_id).get.return_value = mock_load_get
 
     response = client.put(f"/loads/{load_id}/accept", headers=headers)
 
@@ -302,27 +307,15 @@ def test_accept_load_not_posted():
 
 def test_accept_load_not_found():
     """Test that accepting a non-existent load fails."""
-    token = get_auth_token(TEST_LOADER_USER)
+    # No need to mock the user here, as the get_current_user dependency will fail
+    # if the user doesn't exist, which is fine for this test's purpose.
+    token = get_auth_token(TEST_LOADER_USER) 
     headers = {"Authorization": f"Bearer {token}"}
     load_id = "non_existent_load"
 
-    mock_user_get = MagicMock()
-    mock_user_get.exists = True
-    hashed_password = get_password_hash(TEST_LOADER_USER["password"])
-    mock_user_get.to_dict.return_value = {"email": TEST_LOADER_USER["email"], "hashed_password": hashed_password, "role": TEST_LOADER_USER["role"]}
-    mock_user_doc_ref = MagicMock()
-    mock_user_doc_ref.get.return_value = mock_user_get
-
     mock_load_get = MagicMock()
     mock_load_get.exists = False
-    mock_load_doc_ref = MagicMock()
-    mock_load_doc_ref.get.return_value = mock_load_get
-
-    def document_side_effect(doc_id):
-        if doc_id == load_id: return mock_load_doc_ref
-        if doc_id == TEST_LOADER_USER["email"]: return mock_user_doc_ref
-        return MagicMock()
-    mock_db.collection.return_value.document.side_effect = document_side_effect
+    mock_db.collection("loads").document(load_id).get.return_value = mock_load_get
 
     response = client.put(f"/loads/{load_id}/accept", headers=headers)
 

@@ -11,7 +11,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 class UserRead(BaseModel):
     email: EmailStr
     role: str
-    company_name: Optional[str] = None
+    user_name: Optional[str] = None
 
 @router.get("/me", response_model=UserRead)
 def read_users_me(current_user: User = Depends(get_current_user)):
