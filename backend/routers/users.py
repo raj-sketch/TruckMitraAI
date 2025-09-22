@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from backend.models import User
+from backend.models import User, UserRead
 from backend.security import get_current_user
 
 router = APIRouter(
@@ -7,7 +7,7 @@ router = APIRouter(
     tags=["users"],
 )
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=UserRead)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """
     Get current user.

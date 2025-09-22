@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 from backend.models import User, UserCreate
 from typing import Optional
 from backend.database import db
@@ -35,9 +36,18 @@ def authenticate_user(email: str, password: str) -> Optional[User]:
 
 @router.post('/token', status_code=status.HTTP_200_OK)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password", headers={"WWW-Authenticate": "Bearer"})
-    
-    access_token = create_access_token(data={"sub": user.email, "role": user.role})
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+    try:
+        user = authenticate_user(form_data.username, form_data.password)
+        if not user:
+            # This is an expected failure (wrong password), so we raise a standard 401
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password", headers={"WWW-Authenticate": "Bearer"})
+        
+        access_token = create_access_token(data={"sub": user.email, "role": user.role})
+        return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+    except Exception as e:
+        # Catch any other unexpected errors (e.g., DB connection, missing SECRET_KEY)
+        # and return a 500 error that the frontend can handle.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An internal error occurred during authentication: {e}"
+        )

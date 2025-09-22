@@ -114,14 +114,14 @@ export default function LoginPage() {
                 <label htmlFor="email" className="block text-xs text-gray-500 mb-1">Company Email ID</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">✉️</span>
-                  <input id="email" type="email" className="w-full pl-10 pr-3 py-2 rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <input id="email" type="email" autoComplete="username" className="w-full pl-10 pr-3 py-2 rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 </div>
               </div>
               <div>
                 <label htmlFor="password" className="block text-xs text-gray-500 mb-1">Password</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔒</span>
-                  <input id="password" type="password" className="w-full pl-10 pr-3 py-2 rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <input id="password" type="password" autoComplete="current-password" className="w-full pl-10 pr-3 py-2 rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
               </div>
               {loginError && <div className="text-red-600 text-sm text-center">{loginError}</div>}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
-// TODO: Import api from "../api.js" when ready to fetch data
+import api from "../api.js";
 
 export default function ShipperDashboard() {
   const [stats, setStats] = useState([
@@ -14,6 +14,16 @@ export default function ShipperDashboard() {
   const [analyticsData, setAnalyticsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // State for the new "Create Load" form
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [materialType, setMaterialType] = useState("");
+  const [weight, setWeight] = useState("");
+  const [orderDescription, setOrderDescription] = useState("");
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,6 +58,38 @@ export default function ShipperDashboard() {
     };
     fetchData();
   }, []);
+
+  const handleCreateLoad = async (e) => {
+    e.preventDefault();
+
+    setFormLoading(true);
+    setFormError("");
+    setFormSuccess("");
+
+    try {
+      const payload = {
+        origin,
+        destination,
+        material_type: materialType,
+        weight: parseInt(weight, 10),
+        order_description: orderDescription,
+      };
+
+      const res = await api.post("/loads/", payload);
+      setFormSuccess(`Load created! ID: ${res.data.id}`);
+
+      // Reset form fields
+      setOrigin("");
+      setDestination("");
+      setMaterialType("");
+      setWeight("");
+      setOrderDescription("");
+    } catch (err) {
+      setFormError(err?.response?.data?.detail || "Failed to create load.");
+    } finally {
+      setFormLoading(false);
+    }
+  };
 
   return (
     <DashboardLayout pageTitle="Dashboard Overview">
@@ -88,36 +130,39 @@ export default function ShipperDashboard() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-4">
-            <h2 className="font-semibold text-gray-800 mb-3">Quick Assignment</h2>
-            <form className="space-y-3">
+            <h2 className="font-semibold text-gray-800 mb-3">Create a New Load</h2>
+            <form onSubmit={handleCreateLoad} className="space-y-4">
               <div>
-                <label className="text-xs text-gray-500">Order ID</label>
-                <input className="w-full border rounded px-3 py-2" placeholder="Enter order ID" />
+                <label htmlFor="origin" className="text-xs text-gray-500">Origin</label>
+                <input id="origin" type="text" value={origin} onChange={(e) => setOrigin(e.target.value)} className="w-full border rounded px-3 py-2 mt-1" placeholder="e.g., Mumbai, India" required />
               </div>
               <div>
-                <label className="text-xs text-gray-500">Select Driver</label>
-                <select className="w-full border rounded px-3 py-2">
-                  <option>Choose a driver</option>
-                  <option>Mike Johnson</option>
-                  <option>David Brown</option>
-                </select>
+                <label htmlFor="destination" className="text-xs text-gray-500">Destination</label>
+                <input id="destination" type="text" value={destination} onChange={(e) => setDestination(e.target.value)} className="w-full border rounded px-3 py-2 mt-1" placeholder="e.g., Delhi, India" required />
               </div>
               <div>
-                <label className="text-xs text-gray-500">Select Truck</label>
-                <select className="w-full border rounded px-3 py-2">
-                  <option>Choose a truck</option>
-                  <option>MH12 AB 1234</option>
-                  <option>DL8C 4567</option>
-                </select>
+                <label htmlFor="materialType" className="text-xs text-gray-500">Material Type</label>
+                <input id="materialType" type="text" value={materialType} onChange={(e) => setMaterialType(e.target.value)} className="w-full border rounded px-3 py-2 mt-1" placeholder="e.g., Steel Coils, Grain" required />
               </div>
               <div>
-                <label className="text-xs text-gray-500">Priority Level</label>
-                <select className="w-full border rounded px-3 py-2">
-                  <option>Normal Priority</option>
-                  <option>High Priority</option>
-                </select>
+                <label htmlFor="weight" className="text-xs text-gray-500">Weight (kg)</label>
+                <input id="weight" type="number" value={weight} onChange={(e) => setWeight(e.target.value)} className="w-full border rounded px-3 py-2 mt-1" placeholder="e.g., 10000" required />
               </div>
-              <button type="button" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded py-2 transition">Assign Driver</button>
+              <div>
+                <label htmlFor="orderDescription" className="text-xs text-gray-500">Order Description</label>
+                <textarea id="orderDescription" value={orderDescription} onChange={(e) => setOrderDescription(e.target.value)} className="w-full border rounded px-3 py-2 mt-1" placeholder="Optional: e.g., Fragile items, handle with care." rows="2"></textarea>
+              </div>
+
+              {formError && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{formError}</div>}
+              {formSuccess && <div className="text-sm text-green-600 bg-green-50 p-2 rounded">{formSuccess}</div>}
+
+               <button
+                type="submit"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded py-2 transition disabled:opacity-50"
+                disabled={formLoading}
+              >
+                {formLoading ? "Creating..." : "Create Load"}
+              </button>
             </form>
           </div>
         </section>

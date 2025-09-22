@@ -1,66 +1,52 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from backend.models import Load, User, LoadCreate, LoadRead
 from datetime import datetime, timezone
-from typing import List
 from backend.database import db
+from backend.models import LoadCreate, LoadRead, User
 from backend.security import get_current_user
 
-router = APIRouter(prefix="/loads", tags=["loads"])
+# Create a new router for loads
+router = APIRouter()
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
-def post_load(load_in: LoadCreate, current_user: User = Depends(get_current_user)):
-    if current_user.role != 'shipper':
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only shippers can post loads")
-    
-    load_dict = load_in.model_dump()
-    load_dict["status"] = "posted"
-    load_dict["posted_date"] = datetime.now(timezone.utc)
-    load_dict["shipper_id"] = current_user.email # Ensure shipper_id is the authenticated user
-
-    # Use .add() to let Firestore generate the document ID
-    update_time, load_ref = db.collection('loads').add(load_dict)
-    return {"load_id": load_ref.id, "message": "Load posted successfully"}
-
-@router.get("/shipper/me", response_model=List[LoadRead])
-def get_my_loads(current_user: User = Depends(get_current_user)):
+@router.post(
+    "/",
+    response_model=LoadRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new load"
+)
+def create_load(
+    load_in: LoadCreate,
+    current_user: User = Depends(get_current_user)
+):
     """
-    Get all loads posted by the currently authenticated shipper.
+    Creates a new load document in Firestore.
+
+    - **Requires authentication.**
+    - Checks if the user is a 'shipper'.
+    - Receives load data (origin, destination, etc.).
+    - Adds shipper ID, posted date, and a default 'posted' status.
+    - Saves to the 'loads' collection in Firestore.
+    - Returns the complete load object, including its new ID.
     """
     if current_user.role != 'shipper':
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only shippers can view their posted loads")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only shippers can create new loads."
+        )
 
-    docs = db.collection('loads').where('shipper_id', '==', current_user.email).stream()
-    loads = []
-    for doc in docs:
-        load_data = doc.to_dict()
-        load_data['id'] = doc.id
-        loads.append(LoadRead(**load_data))
-    return loads
+    try:
+        # Prepare the data to be stored in Firestore
+        load_dict = load_in.model_dump()
+        load_dict.update({
+            "shipper_id": current_user.email,
+            "posted_date": datetime.now(timezone.utc),
+            "status": "posted"  # 'posted' is a good initial status
+        })
 
-@router.get("/available", response_model=List[LoadRead])
-def get_available_loads(current_user: User = Depends(get_current_user)):
-    docs = db.collection('loads').where('status', '==', 'posted').stream()
-    loads = []
-    for doc in docs:
-        load_data = doc.to_dict()
-        load_data['id'] = doc.id
-        loads.append(LoadRead(**load_data))
-    return loads
+        # Add a new document to the 'loads' collection with an auto-generated ID
+        _update_time, doc_ref = db.collection("loads").add(load_dict)
 
-@router.put("/{load_id}/accept")
-def accept_load(load_id: str, current_user: User = Depends(get_current_user)):
-    if current_user.role != 'loader':
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only loaders can accept loads")
+        # Return the full object by merging the generated ID with the saved data
+        return LoadRead(id=doc_ref.id, **load_dict)
 
-    load_ref = db.collection('loads').document(load_id)
-    load_doc = load_ref.get()
-
-    if not load_doc.exists:
-        raise HTTPException(status_code=404, detail="Load not found")
-    
-    load = load_doc.to_dict()
-    if load.get("status") != "posted":
-        raise HTTPException(status_code=400, detail="Load not available")
-
-    load_ref.update({"status": "active", "loader_id": current_user.email})
-    return {"message": "Load accepted", "load_id": load_id}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

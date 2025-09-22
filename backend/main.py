@@ -9,7 +9,7 @@ load_dotenv(dotenv_path=dotenv_path)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import auth, loads, predictions, users
+from backend.routers import auth, loads, predictions, users, my_collection
 from backend import database
 
 app = FastAPI()
@@ -29,9 +29,10 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(loads.router)
+app.include_router(loads.router, prefix="/loads", tags=["Loads"])
 app.include_router(predictions.router)
 app.include_router(users.router)
+app.include_router(my_collection.router)
 
 @app.get("/")
 def read_root():
