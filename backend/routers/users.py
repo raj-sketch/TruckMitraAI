@@ -10,6 +10,8 @@ router = APIRouter(
 @router.get("/me", response_model=UserRead)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """
-    Get current user.
+    Get current user. This endpoint is `async` because its dependency,
+    `get_current_user`, is an `async` function that performs I/O operations
+    in a non-blocking way.
     """
     return current_user

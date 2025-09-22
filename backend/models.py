@@ -39,6 +39,7 @@ class LoadBase(BaseModel):
     material_type: str  # Type of material being shipped
     weight: int  # Weight of the load in kilograms
     order_description: Optional[str] = None
+    loader_id: Optional[str] = None # ID of the loader who accepted the load
 
 class LoadCreate(LoadBase):
     """Model for creating a new load."""

@@ -4,6 +4,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 from pydantic import ValidationError
+from fastapi.concurrency import run_in_threadpool
 
 from backend.database import db
 from backend.models import User
@@ -61,7 +62,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     except (jwt.PyJWTError, ValidationError):
         raise credentials_exception
     
-    user_doc = db.collection('users').document(email).get()
+    # Run the blocking I/O call in a separate thread to avoid blocking the event loop.
+    # This is crucial for performance and stability in an async application.
+    user_doc = await run_in_threadpool(db.collection('users').document(email).get)
+
     if not user_doc.exists:
         raise credentials_exception
     

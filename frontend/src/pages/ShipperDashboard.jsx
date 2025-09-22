@@ -4,13 +4,8 @@ import StatusBadge from "../components/StatusBadge.jsx";
 import api from "../api.js";
 
 export default function ShipperDashboard() {
-  const [stats, setStats] = useState([
-    { label: "Total Orders", value: "...", change: "", icon: "📦" },
-    { label: "Active Loads", value: "...", change: "", icon: "🚚" },
-    { label: "Delivered Today", value: "...", change: "", icon: "✅" },
-    { label: "Revenue", value: "...", change: "", icon: "💰" },
-  ]);
-  const [recentOrders, setRecentOrders] = useState([]);
+  const [stats, setStats] = useState({});
+  const [loads, setLoads] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,39 +21,37 @@ export default function ShipperDashboard() {
   const [formSuccess, setFormSuccess] = useState("");
 
   useEffect(() => {
-    const fetchData = async () => {
+    // Fetches all loads for the current shipper and calculates stats.
+    const fetchShipperData = async () => {
       setLoading(true);
       setError("");
       try {
-        // TODO: Replace with actual API calls
-        // const statsRes = await api.get('/dashboard/stats');
-        // setStats(statsRes.data);
-        // const ordersRes = await api.get('/dashboard/recent-orders');
-        // setRecentOrders(ordersRes.data);
+        const res = await api.get("/loads/shipper/me");
+        const shipperLoads = res.data || [];
+        setLoads(shipperLoads);
+
+        // Calculate stats from the fetched data
+        const total = shipperLoads.length;
+        const inTransit = shipperLoads.filter(l => l.status === 'in-transit').length;
+        const delivered = shipperLoads.filter(l => l.status === 'delivered').length;
+        const standBy = shipperLoads.filter(l => l.status === 'stand by').length;
+
+        setStats({ total, inTransit, delivered, standBy });
+
+        // Placeholder for analytics data
         // const analyticsRes = await api.get('/dashboard/analytics');
         // setAnalyticsData(analyticsRes.data);
-
-        // Placeholder data for now
-        setStats([
-          { label: "Total Orders", value: "1,234", change: "+12%", icon: "📦" },
-          { label: "Active Loads", value: "45", change: "+3%", icon: "🚚" },
-          { label: "Delivered Today", value: "89", change: "+8%", icon: "✅" },
-          { label: "Revenue", value: "$12,450", change: "+15%", icon: "💰" },
-        ]);
-        setRecentOrders([
-          { id: "PKG001", customer: "Sanjay kumar", destination: "Delhi", status: "DELIVERED", date: "2025-01-15", driver: "Ajay kumar" },
-          { id: "PKG002", customer: "Ravi Yadav", destination: "Kanpur", status: "IN_TRANSIT", date: "2025-01-14", driver: "Zakhir Khan" },
-        ]);
         setAnalyticsData([40, 22, 65, 80, 55, 48, 70]);
       } catch (e) {
-        setError("Failed to load dashboard data.");
+        setError(e?.response?.data?.detail || "Failed to load dashboard data.");
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchShipperData();
   }, []);
 
+  // Handles the submission of the "Create Load" form.
   const handleCreateLoad = async (e) => {
     e.preventDefault();
 
@@ -76,7 +69,12 @@ export default function ShipperDashboard() {
       };
 
       const res = await api.post("/loads/", payload);
-      setFormSuccess(`Load created! ID: ${res.data.load_id}`);
+      setFormSuccess(`Load created successfully!`);
+
+      // Optimistic UI Update: Add the new load to the top of the list
+      // This makes the UI feel faster as we don't need to re-fetch all data.
+      const newLoad = { ...payload, id: res.data.load_id, status: 'stand by', posted_date: new Date().toISOString() };
+      setLoads(prevLoads => [newLoad, ...prevLoads]);
 
       // Reset form fields
       setOrigin("");
@@ -84,6 +82,9 @@ export default function ShipperDashboard() {
       setMaterialType("");
       setWeight("");
       setOrderDescription("");
+
+      // Hide success message after a few seconds
+      setTimeout(() => setFormSuccess(""), 3000);
     } catch (err) {
       setFormError(err?.response?.data?.detail || "Failed to create load.");
     } finally {
@@ -96,17 +97,18 @@ export default function ShipperDashboard() {
       <div className="space-y-6">
         {/* Stats */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="bg-white rounded-lg shadow p-4 flex items-center gap-4">
-              <div className="text-3xl">{s.icon}</div>
-              <div>
-                <div className="text-xs text-gray-500">{s.label}</div>
-                <div className="text-xl font-semibold text-gray-800">{s.value}</div>
-                {s.change && <div className="text-xs text-green-600">{s.change}</div>}
-              </div>
-            </div>
-          ))}
+          <StatCard label="Total Orders" value={loading ? '...' : stats.total} icon="📦" />
+          <StatCard label="In Transit" value={loading ? '...' : stats.inTransit} icon="🚚" />
+          <StatCard label="Delivered" value={loading ? '...' : stats.delivered} icon="✅" />
+          <StatCard label="Stand By" value={loading ? '...' : stats.standBy} icon="⏳" />
         </section>
+
+        {/* Error Display */}
+        {error && !formError && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+            <strong>Error:</strong> {error}
+          </div>
+        )}
 
         {/* Analytics + Recent */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -176,23 +178,24 @@ export default function ShipperDashboard() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-gray-500">
                 <tr>
-                  <th className="text-left px-4 py-2">Order ID</th>
-                  <th className="text-left px-4 py-2">Customer</th>
+                  <th className="text-left px-4 py-2">Origin</th>
                   <th className="text-left px-4 py-2">Destination</th>
                   <th className="text-left px-4 py-2">Status</th>
                   <th className="text-left px-4 py-2">Date</th>
                   <th className="text-left px-4 py-2">Driver</th>
                 </tr>
               </thead>
-              <tbody>
-                {recentOrders.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="px-4 py-2">{r.id}</td>
-                    <td className="px-4 py-2"><p>{r.customer}</p></td>
-                    <td className="px-4 py-2"><p>{r.destination}</p></td>
-                    <td className="px-4 py-2"><StatusBadge status={r.status} /></td>
-                    <td className="px-4 py-2"><p>{r.date}</p></td>
-                    <td className="px-4 py-2"><p>{r.driver}</p></td>
+              <tbody className="divide-y divide-gray-200">
+                {loading && <tr><td colSpan="5" className="text-center py-4 text-gray-500">Loading orders...</td></tr>}
+                {!loading && loads.length === 0 && <tr><td colSpan="5" className="text-center py-4 text-gray-500">No orders found. Create a new load to get started.</td></tr>}
+                {loads.map((load) => (
+                  <tr key={load.id}>
+                    <td className="px-4 py-2 font-medium text-gray-800">{load.origin}</td>
+                    <td className="px-4 py-2 text-gray-600">{load.destination}</td>
+                    <td className="px-4 py-2"><StatusBadge status={load.status} /></td>
+                    <td className="px-4 py-2 text-gray-600">{new Date(load.posted_date).toLocaleDateString()}</td>
+                    {/* Display loader's email or 'None' if not assigned */}
+                    <td className="px-4 py-2 text-gray-600">{load.loader_id || 'None'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -201,5 +204,18 @@ export default function ShipperDashboard() {
         </section>
       </div>
     </DashboardLayout>
+  );
+}
+
+// A simple component for the stat cards to keep the main return block cleaner.
+function StatCard({ label, value, icon }) {
+  return (
+    <div className="bg-white rounded-lg shadow p-4 flex items-center gap-4">
+      <div className="text-3xl">{icon}</div>
+      <div>
+        <div className="text-xs text-gray-500">{label}</div>
+        <div className="text-xl font-semibold text-gray-800">{value}</div>
+      </div>
+    </div>
   );
 }

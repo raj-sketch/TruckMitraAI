@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api.js";
 
-export default function DashboardLayout({ pageTitle, children }) {
+export default function DashboardLayout({ pageTitle, children, onUserLoaded }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
@@ -12,6 +12,10 @@ export default function DashboardLayout({ pageTitle, children }) {
       try {
         const { data } = await api.get("/users/me");
         setUser(data);
+        // If a callback is provided, call it with the loaded user data.
+        if (onUserLoaded) {
+          onUserLoaded(data);
+        }
       } catch (err) {
         setError(err?.response?.data?.detail || "Could not fetch user info.");
         if (err?.response?.status === 401) {

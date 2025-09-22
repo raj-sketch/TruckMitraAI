@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "/src/components/DashboardLayout.jsx";
 import StatusBadge from "/src/components/StatusBadge.jsx";
 import api from "../api.js";
 
 export default function DriverDashboard() {
+  const navigate = useNavigate();
   const [available, setAvailable] = useState([]);
   const [activeLoads, setActiveLoads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,6 +13,7 @@ export default function DriverDashboard() {
   const [error, setError] = useState("");
   const [accepting, setAccepting] = useState("");
 
+  // Fetches loads with 'stand by' status for the live board.
   const fetchAvailable = async () => {
     setLoading(true);
     setError("");
@@ -24,6 +27,7 @@ export default function DriverDashboard() {
     }
   };
 
+  // Fetches loads assigned to the current driver.
   const fetchActiveLoads = async () => {
     setActiveLoading(true);
     try {
@@ -37,20 +41,26 @@ export default function DriverDashboard() {
   };
 
   useEffect(() => {
-    // Fetch both in parallel
+    // When the component mounts, fetch both available and active loads in parallel.
     fetchAvailable();
     fetchActiveLoads();
   }, []);
 
+  // Handles the "Accept Load" button click.
   const handleAccept = async (id) => {
     setAccepting(id);
     setError("");
     try {
+      // Call the backend to accept the load.
       await api.put(`/loads/${id}/accept`);
+
+      // --- Optimistic UI Update ---
+      // Find the load that was just accepted from the 'available' list.
       const accepted = available.find((l) => l.id === id);
-      // Optimistically update UI
       if (accepted) {
-        setActiveLoads((prev) => [{ ...accepted, status: "active" }, ...prev]);
+        // Add the accepted load to the 'activeLoads' list with its new status.
+        setActiveLoads((prev) => [{ ...accepted, status: "in transit" }, ...prev]);
+        // Remove the accepted load from the 'available' list.
         setAvailable((prev) => prev.filter((l) => l.id !== id));
       } else {
         // If the load wasn't in the available list, something is out of sync. Refetch.
@@ -64,8 +74,20 @@ export default function DriverDashboard() {
     }
   };
 
+  // This function will be passed to DashboardLayout to get the user object.
+  const handleUserLoaded = (user) => {
+    // If the user is loaded and their role is not 'loader', redirect them.
+    if (user && user.role !== 'loader') {
+      // Redirect to the shipper dashboard as a fallback.
+      navigate('/shipper-dashboard');
+    }
+  };
+
   return (
-    <DashboardLayout pageTitle="Driver Dashboard">
+    <DashboardLayout
+      pageTitle="Driver Dashboard"
+      onUserLoaded={handleUserLoaded}
+    >
       <div className="space-y-6">
         {/* My Active Loads */}
         <section className="bg-white rounded-lg shadow p-4">

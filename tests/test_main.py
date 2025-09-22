@@ -159,12 +159,10 @@ def test_login_failure_wrong_password():
     mock_user_get = MagicMock()
     mock_user_get.exists = True
     mock_user_get.to_dict.return_value = mock_user_doc
-    mock_db.collection.return_value.document.return_value.get.return_value = mock_user_get
     # Ensure this mock is specific to the user's email
     mock_db.collection("users").document(TEST_SHIPPER_USER["email"]).get.return_value = mock_user_get
 
     response = client.post(
-        "/auth/token",
         "/auth/token", # Attempt to log in with the wrong password
         data={"username": TEST_SHIPPER_USER["email"], "password": TEST_SHIPPER_USER["password"]},
     )
@@ -217,7 +215,7 @@ def test_get_available_loads(authenticated_user_mock):
         "origin": "Mumbai, India",
         "destination": "Delhi, India",
         "weight": 10000,
-        "status": "posted",
+        "status": "stand by",
         "loader_id": None
     }
     mock_db.collection.return_value.where.return_value.stream.return_value = [mock_load_doc]
@@ -225,7 +223,7 @@ def test_get_available_loads(authenticated_user_mock):
     response = client.get("/loads/available", headers=headers)
     assert response.status_code == 200
     assert len(response.json()) == 1
-    assert response.json()[0]["status"] == "posted"
+    assert response.json()[0]["status"] == "stand by"
 
 def test_get_my_shipper_loads(authenticated_user_mock):
     """Test retrieving all loads for the currently authenticated shipper."""
@@ -241,10 +239,14 @@ def test_get_my_shipper_loads(authenticated_user_mock):
         "origin": "Pune, India",
         "destination": "Goa, India",
         "weight": 5000,
-        "status": "posted",
+        "status": "stand by",
         "loader_id": None
     }
-    mock_db.collection.return_value.where.return_value.stream.return_value = [mock_load_doc]
+    # Mock the full query chain, including the .order_by() call, to accurately
+    # reflect the implementation in routers/loads.py.
+    mock_db.collection.return_value.where.return_value.order_by.return_value.stream.return_value = [
+        mock_load_doc
+    ]
 
     response = client.get("/loads/shipper/me", headers=headers)
     assert response.status_code == 200
@@ -271,7 +273,7 @@ def test_accept_load_success(authenticated_user_mock):
     # Mock for the load document
     mock_load_get = MagicMock()
     mock_load_get.exists = True
-    mock_load_get.to_dict.return_value = {"status": "posted"}
+    mock_load_get.to_dict.return_value = {"status": "stand by"}
     mock_load_doc_ref = MagicMock()
     mock_load_doc_ref.get.return_value = mock_load_get
 
@@ -295,7 +297,7 @@ def test_accept_load_not_posted(authenticated_user_mock):
 
     mock_load_get = MagicMock()
     mock_load_get.exists = True
-    mock_load_get.to_dict.return_value = {"status": "active"}  # Already active
+    mock_load_get.to_dict.return_value = {"status": "active"}  # A non-'stand by' status
     mock_load_doc_ref = MagicMock()
     mock_load_doc_ref.get.return_value = mock_load_get
     mock_db.collection("loads").document(load_id).get.return_value = mock_load_get
