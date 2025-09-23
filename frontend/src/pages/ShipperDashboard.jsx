@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
+import StatCard from "../components/StatCard.jsx";
 import api from "../api.js";
 
 export default function ShipperDashboard() {
@@ -32,7 +33,7 @@ export default function ShipperDashboard() {
 
         // Calculate stats from the fetched data
         const total = shipperLoads.length;
-        const inTransit = shipperLoads.filter(l => l.status === 'in-transit').length;
+        const inTransit = shipperLoads.filter(l => l.status === 'transit').length;
         const delivered = shipperLoads.filter(l => l.status === 'delivered').length;
         const standBy = shipperLoads.filter(l => l.status === 'stand by').length;
 
@@ -97,10 +98,10 @@ export default function ShipperDashboard() {
       <div className="space-y-6">
         {/* Stats */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Orders" value={loading ? '...' : stats.total} icon="📦" />
-          <StatCard label="In Transit" value={loading ? '...' : stats.inTransit} icon="🚚" />
-          <StatCard label="Delivered" value={loading ? '...' : stats.delivered} icon="✅" />
-          <StatCard label="Stand By" value={loading ? '...' : stats.standBy} icon="⏳" />
+          <StatCard title="Total Orders" value={loading ? '...' : stats.total} change="0" />
+          <StatCard title="In Transit" value={loading ? '...' : stats.inTransit} change="0" />
+          <StatCard title="Delivered" value={loading ? '...' : stats.delivered} change="0" />
+          <StatCard title="Stand By" value={loading ? '...' : stats.standBy} change="0" />
         </section>
 
         {/* Error Display */}
@@ -207,15 +208,3 @@ export default function ShipperDashboard() {
   );
 }
 
-// A simple component for the stat cards to keep the main return block cleaner.
-function StatCard({ label, value, icon }) {
-  return (
-    <div className="bg-white rounded-lg shadow p-4 flex items-center gap-4">
-      <div className="text-3xl">{icon}</div>
-      <div>
-        <div className="text-xs text-gray-500">{label}</div>
-        <div className="text-xl font-semibold text-gray-800">{value}</div>
-      </div>
-    </div>
-  );
-}
