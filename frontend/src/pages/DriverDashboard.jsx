@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardLayout from "/src/components/DashboardLayout.jsx";
-import StatusBadge from "/src/components/StatusBadge.jsx";
+import DashboardLayout from "../components/DashboardLayout.jsx";
+import StatusBadge from "../components/StatusBadge.jsx";
 import api from "../api.js";
 
 export default function DriverDashboard() {
@@ -59,7 +59,7 @@ export default function DriverDashboard() {
       const accepted = available.find((l) => l.id === id);
       if (accepted) {
         // Add the accepted load to the 'activeLoads' list with its new status.
-        setActiveLoads((prev) => [{ ...accepted, status: "in transit" }, ...prev]);
+        setActiveLoads((prev) => [{ ...accepted, status: "transit" }, ...prev]);
         // Remove the accepted load from the 'available' list.
         setAvailable((prev) => prev.filter((l) => l.id !== id));
       } else {

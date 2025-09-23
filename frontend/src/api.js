@@ -3,7 +3,7 @@ import axios from "axios";
 export const AUTH_TOKEN_KEY = "access_token";
 
 const apiClient = axios.create({
-  baseURL: "http://127.0.0.1:8000",
+  baseURL: "http://localhost:8000",
 });
 
 // Add a request interceptor to include the auth token in headers

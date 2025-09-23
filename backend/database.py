@@ -2,6 +2,13 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
+import pathlib
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+project_root = pathlib.Path(__file__).parent.parent
+dotenv_path = project_root / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 
 # Initialize db to None. It will be populated if Firebase initializes correctly.
 db = None

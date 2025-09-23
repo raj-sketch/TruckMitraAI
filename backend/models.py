@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, Literal
 from datetime import datetime
 
 # --- User Models ---
@@ -54,7 +54,7 @@ class Load(LoadBase):
     """Model for load data stored in the database."""
     id: str  # Unique identifier for the load
     shipper_id: str  # ID of the shipper posting the load
-    status: str  # Current status of the load
+    status: Literal["transit", "stand by", "delivered"] = Field(..., description="Load status: transit, stand by, or delivered")
     posted_date: datetime  # Date when the load was posted
 
 class LoadRead(Load): 

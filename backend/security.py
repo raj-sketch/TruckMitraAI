@@ -62,6 +62,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     except (jwt.PyJWTError, ValidationError):
         raise credentials_exception
     
+    # Check if database is available
+    if db is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database connection not available"
+        )
+    
     # Run the blocking I/O call in a separate thread to avoid blocking the event loop.
     # This is crucial for performance and stability in an async application.
     user_doc = await run_in_threadpool(db.collection('users').document(email).get)

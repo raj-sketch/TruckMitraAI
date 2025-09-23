@@ -87,40 +87,6 @@ def get_my_shipper_loads(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.get(
-    "/shipper/me",
-    response_model=list[LoadRead],
-    summary="Get all loads for the current shipper"
-)
-def get_my_shipper_loads(current_user: User = Depends(get_current_user)):
-    """
-    Retrieves all loads posted by the currently authenticated shipper.
-
-    - **Requires authentication.**
-    - Checks if the user is a 'shipper'.
-    - Returns a list of loads, ordered by the most recently posted.
-    """
-    if current_user.role != 'shipper':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only shippers can view their posted loads"
-        )
-
-    try:
-        # Query the 'loads' collection for documents where 'shipper_id' matches the current user's email.
-        # Order the results by 'posted_date' in descending order to get the newest loads first.
-        docs = db.collection('loads') \
-            .where(filter=FieldFilter('shipper_id', '==', current_user.email)) \
-            .order_by('posted_date', direction='DESCENDING') \
-            .stream()
-
-        # The response model `LoadRead` expects an `id` field, which is not part of the document data.
-        # We construct a list of dictionaries, adding the document ID to each one.
-        loads = [{**doc.to_dict(), "id": doc.id} for doc in docs]
-        return loads
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-@router.get(
     "/available",
     response_model=list[LoadRead],
     summary="Get all available loads for drivers"
@@ -158,7 +124,7 @@ def accept_load(load_id: str, current_user: User = Depends(get_current_user)):
     - **Requires authentication.**
     - Checks if the user is a 'loader' (driver).
     - Verifies the load exists and its status is 'stand by'.
-    - Updates the load's status to 'in transit' and assigns the current driver's email as the 'loader_id'.
+    - Updates the load's status to 'transit' and assigns the current driver's email as the 'loader_id'.
     """
     if current_user.role != 'loader':
         raise HTTPException(
@@ -178,11 +144,85 @@ def accept_load(load_id: str, current_user: User = Depends(get_current_user)):
 
     # Update the document with the new status and the driver's ID.
     doc_ref.update({
-        "status": "in transit",
+        "status": "transit",
         "loader_id": current_user.email
     })
 
     return {"message": "Load accepted", "load_id": load_id}
+
+@router.put(
+    "/{load_id}/deliver",
+    summary="Mark a load as delivered"
+)
+def deliver_load(load_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Allows a driver to mark a load as delivered.
+
+    - **Requires authentication.**
+    - Checks if the user is a 'loader' (driver).
+    - Verifies the load exists and is assigned to the current driver.
+    - Updates the load's status to 'delivered'.
+    """
+    if current_user.role != 'loader':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only loaders can mark loads as delivered."
+        )
+
+    doc_ref = db.collection('loads').document(load_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Load not found")
+
+    load = doc.to_dict()
+    if load.get('loader_id') != current_user.email:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only deliver loads assigned to you")
+
+    # Update the document with the delivered status
+    doc_ref.update({
+        "status": "delivered"
+    })
+
+    return {"message": "Load marked as delivered", "load_id": load_id}
+
+@router.put(
+    "/{load_id}/status",
+    summary="Update load status"
+)
+def update_load_status(
+    load_id: str, 
+    status_update: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Allows updating a load's status.
+
+    - **Requires authentication.**
+    - Validates the new status is one of: transit, stand by, delivered
+    - Updates the load's status.
+    """
+    valid_statuses = ["transit", "stand by", "delivered"]
+    new_status = status_update.get("status")
+    
+    if new_status not in valid_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+        )
+
+    doc_ref = db.collection('loads').document(load_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Load not found")
+
+    # Update the document with the new status
+    doc_ref.update({
+        "status": new_status
+    })
+
+    return {"message": f"Load status updated to {new_status}", "load_id": load_id}
 
 @router.get(
     "/my-active",
